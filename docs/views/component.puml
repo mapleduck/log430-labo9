@@ -1,0 +1,22 @@
+@startuml
+package View {
+    [api.py] 
+}
+
+package Controller {
+    [order_controller.py] 
+}
+
+package Models {
+    [Order] 
+    [OrderItem] 
+    [Product] 
+    [User] 
+}
+
+[api.py] --> [order_controller.py] 
+[order_controller.py] --> [Order] 
+[OrderItem] --> [Order] 
+[OrderItem] --> [Product] 
+[Order] --> [User] 
+@enduml

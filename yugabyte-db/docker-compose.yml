@@ -1,0 +1,101 @@
+services:
+  yugabyte1:
+    image: yugabytedb/yugabyte:latest
+    container_name: yugabyte1
+    command: >
+      bash -c "/home/yugabyte/bin/yugabyted start --advertise_address=yugabyte1 --tserver_flags=ysql_enable_auth=false --daemon=false --base_dir=/home/yugabyte/var"
+    ports:
+      - "7000:7000"   # yb-master UI
+      - "9000:9000"   # yb-tserver UI
+      - "5433:5433"   # YSQL
+      - "9042:9042"   # YCQL
+    volumes:
+      - yugabyte_data1:/home/yugabyte/var
+    networks:
+      - labo09-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://yugabyte1:7000/api/v1/masters | grep -q 'LEADER' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+
+  yugabyte2:
+    image: yugabytedb/yugabyte:latest
+    container_name: yugabyte2
+    command: >
+      bash -c "/home/yugabyte/bin/yugabyted start --advertise_address=yugabyte2 --join=yugabyte1 --daemon=false --base_dir=/home/yugabyte/var"
+    volumes:
+      - yugabyte_data2:/home/yugabyte/var
+    depends_on:
+      yugabyte1:
+        condition: service_healthy
+    networks:
+      - labo09-network
+
+  yugabyte3:
+    image: yugabytedb/yugabyte:latest
+    container_name: yugabyte3
+    command: >
+      bash -c "/home/yugabyte/bin/yugabyted start --advertise_address=yugabyte3 --join=yugabyte1 --daemon=false --base_dir=/home/yugabyte/var"
+    volumes:
+      - yugabyte_data3:/home/yugabyte/var
+    depends_on:
+      yugabyte1:
+        condition: service_healthy
+    networks:
+      - labo09-network
+
+  db-init:
+    image: yugabytedb/yugabyte:latest
+    container_name: db_init
+    volumes:
+      - ./db-init:/db-init
+    entrypoint: ["bash", "/db-init/entrypoint.sh"]
+    depends_on:
+      yugabyte1:
+        condition: service_healthy
+    networks:
+      - labo09-network
+
+  python-app:
+    build: .
+    container_name: python_app
+    environment:
+      - PYTHONPATH=/app/src
+    depends_on:
+      yugabyte1:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    networks:
+      - labo09-network
+    restart: "no"
+
+  locust:
+    image: locustio/locust:latest
+    container_name: locust
+    ports:
+      - "8089:8089"
+    volumes:
+      - ./locustfiles:/mnt/locust
+    command: >
+      -f /mnt/locust/locustfile.py
+      --host=http://python-app:5000
+    depends_on:
+      - python-app
+    networks:
+      - labo09-network
+
+networks:
+  labo09-network:
+    driver: bridge
+
+volumes:
+  yugabyte_data1:
+  yugabyte_data2:
+  yugabyte_data3:

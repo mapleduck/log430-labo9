@@ -1,0 +1,106 @@
+services:
+  cockroach1:
+    image: cockroachdb/cockroach:latest
+    container_name: cockroach1
+    command: start --insecure --advertise-addr=cockroach1 --join=cockroach1,cockroach2,cockroach3 --listen-addr=0.0.0.0
+    ports:
+      - "26257:26257"  # SQL port
+      - "8080:8080"    # Admin UI
+    volumes:
+      - cockroach_data1:/cockroach/cockroach-data
+    networks:
+      - labo09-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://cockroach1:8080/health?ready=1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  cockroach2:
+    image: cockroachdb/cockroach:latest
+    container_name: cockroach2
+    command: start --insecure --advertise-addr=cockroach2 --join=cockroach1,cockroach2,cockroach3 --listen-addr=0.0.0.0
+    volumes:
+      - cockroach_data2:/cockroach/cockroach-data
+    depends_on:
+      - cockroach1
+    networks:
+      - labo09-network
+
+  cockroach3:
+    image: cockroachdb/cockroach:latest
+    container_name: cockroach3
+    command: start --insecure --advertise-addr=cockroach3 --join=cockroach1,cockroach2,cockroach3 --listen-addr=0.0.0.0
+    volumes:
+      - cockroach_data3:/cockroach/cockroach-data
+    depends_on:
+      - cockroach1
+    networks:
+      - labo09-network
+
+  cluster-init:
+    image: cockroachdb/cockroach:latest
+    container_name: cluster_init
+    entrypoint: ["/bin/bash", "-c", "cockroach init --insecure --host=cockroach1 || true"]
+    depends_on:
+      cockroach1:
+        condition: service_healthy
+    networks:
+      - labo09-network
+
+  db-init:
+    image: cockroachdb/cockroach:latest
+    container_name: db_init_2
+    volumes:
+      - ./db-init:/db-init
+    entrypoint: ["bash", "/db-init/entrypoint.sh"]
+    depends_on:
+      cockroach1:
+        condition: service_healthy
+      cluster-init:
+        condition: service_completed_successfully
+    networks:
+      - labo09-network
+
+  python-app:
+    build: .
+    container_name: python_app_2
+    environment:
+      - PYTHONPATH=/app/src
+    depends_on:
+      cockroach1:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    networks:
+      - labo09-network
+    restart: "no"
+
+  locust:
+    image: locustio/locust:latest
+    container_name: locust_2
+    ports:
+      - "8089:8089"
+    volumes:
+      - ./locustfiles:/mnt/locust
+    command: >
+      -f /mnt/locust/locustfile.py
+      --host=http://python-app:5000
+    depends_on:
+      - python-app
+    networks:
+      - labo09-network
+
+networks:
+  labo09-network:
+    driver: bridge
+
+volumes:
+  cockroach_data1:
+  cockroach_data2:
+  cockroach_data3:

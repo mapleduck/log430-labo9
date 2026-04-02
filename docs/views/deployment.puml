@@ -1,0 +1,28 @@
+@startuml
+  node ConteneurMagasin {
+    component "api.py" 
+  }
+
+  node ConteneurBD1 {
+    database "bd-1"
+  }
+
+  node ConteneurBD2 {
+    database "bd-2"
+  }
+
+  node ConteneurBD3 {
+    database "bd-3"
+  }
+
+  "api.py" <--> "bd-1" : TCP
+  "api.py" <--> "bd-2" : TCP
+  "api.py" <--> "bd-3" : TCP
+
+  "bd-1" <--> "bd-2" : RPC
+  "bd-2" <--> "bd-3" : RPC
+
+  note as N1
+    BD peut désigner soit YugabyteDB, soit CockroachDB
+  end note
+@enduml
