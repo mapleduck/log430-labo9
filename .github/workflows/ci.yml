@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main, master ]
   pull_request:
-
+    
 jobs:
   test:
     runs-on: self-hosted
@@ -12,6 +12,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Créer fichier .env
+        working-directory: yugabyte-db
         run: |
           echo "DB_HOST=yugabyte1" >> .env
           echo "DB_PORT=5433" >> .env
@@ -20,6 +21,7 @@ jobs:
           echo "DB_PASSWORD=" >> .env
 
       - name: Démarrer le cluster YugabyteDB et l'application
+        working-directory: yugabyte-db
         run: docker compose up -d --wait
 
       - name: Attendre que l'application soit prête
@@ -31,11 +33,11 @@ jobs:
           done
 
       - name: Exécuter le test de concurrence
-        run: |
-          docker exec python_app python tests/concurrency_test.py --threads 5 --product 3
+        run: docker exec python_app python tests/concurrency_test.py --threads 5 --product 3
 
       - name: Arrêter les conteneurs
         if: always()
+        working-directory: yugabyte-db
         run: docker compose down -v
 
   deploy:
@@ -46,6 +48,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Déployer
+        working-directory: yugabyte-db
         run: |
           docker compose down -v
           docker compose up -d --wait

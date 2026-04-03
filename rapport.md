@@ -119,6 +119,22 @@ Dans notre environnement, il semble qu'en terme de performance, YugabyteDB est l
 
 ## Déploiement
 
+### Prérequis
+- Docker et Docker Compose installés
+- GitHub Actions runner self-hosted configuré sur la VM
+
+### Démarrage local
+```bash
+docker compose up -d --wait
+```
+
+### Test de concurrence
+```bash
+docker exec python_app python tests/concurrency_test.py --threads 5 --product 3
+```
+
+### CI/CD
+Le pipeline GitHub Actions exécute automatiquement le test de concurrence à chaque push sur `main`, puis déploie si les tests passent.
 
 ## Annexe
 ### Test 0
