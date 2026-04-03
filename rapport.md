@@ -133,6 +133,7 @@ Le test sera exécuté automatiquement, sinon le déploiement ne sera pas fait.
 
 ### Résultat du CI
 Le CI fonctionnent parfaitement - il créé un environnement de test, lance le test, s'assure qu'il fonctionne, puis cleanup tout et déploie l'application. Voir le screenshot ci-dessous, ou allez sur le repo directement pour voir les logs en détail - chaque étape fonctionne parfaitement.
+![alt text](image-8.png)
 
 ### CI/CD
 Le pipeline GitHub Actions exécute automatiquement le test de concurrence à chaque push sur `main`, puis déploie si les tests passent.
