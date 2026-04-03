@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main, master ]
   pull_request:
-    
+
 jobs:
   test:
     runs-on: self-hosted
@@ -47,9 +47,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Créer fichier .env
+        working-directory: yugabyte-db
+        run: |
+          echo "DB_HOST=yugabyte1" >> .env
+          echo "DB_PORT=5433" >> .env
+          echo "DB_NAME=yugabyte" >> .env
+          echo "DB_USER=yugabyte" >> .env
+          echo "DB_PASSWORD=" >> .env
+
       - name: Déployer
         working-directory: yugabyte-db
         run: |
-          docker compose down -v
+          docker compose down
           docker compose up -d --wait
           echo "Déploiement terminé !"
