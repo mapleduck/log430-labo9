@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Créer fichier .env
+        run: |
+          echo "DB_HOST=yugabyte1" >> .env
+          echo "DB_PORT=5433" >> .env
+          echo "DB_NAME=yugabyte" >> .env
+          echo "DB_USER=yugabyte" >> .env
+          echo "DB_PASSWORD=" >> .env
+
+      - name: Démarrer le cluster YugabyteDB et l'application
+        run: docker compose up -d --wait
+
+      - name: Attendre que l'application soit prête
+        run: |
+          for i in {1..30}; do
+            curl -s http://localhost:5000/health && break
+            echo "Attente de l'application... ($i/30)"
+            sleep 5
+          done
+
+      - name: Exécuter le test de concurrence
+        run: |
+          docker exec python_app python tests/concurrency_test.py --threads 5 --product 3
+
+      - name: Arrêter les conteneurs
+        if: always()
+        run: docker compose down -v
+
+  deploy:
+    runs-on: self-hosted
+    needs: test
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Déployer
+        run: |
+          docker compose down -v
+          docker compose up -d --wait
+          echo "Déploiement terminé !"
